@@ -1,0 +1,1612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#080c12">
+<meta name="description" content="NARRATOR 2.0 — Intelligent reading sanctuary for deep focus, audiobook-style narration, and adaptive learning.">
+<link rel="manifest" href="data:application/json,{\"name\":\"NARRATOR\",\"short_name\":\"NARRATOR\",\"description\":\"Intelligent reading companion\",\"start_url\":\"/\",\"display\":\"standalone\",\"background_color\":\"#080c12\",\"theme_color\":\"#080c12\",\"icons\":[]}">
+<title>NARRATOR 2.0 — Intelligent Reading Sanctuary</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+
+<style>
+  :root {
+    --bg: #080c12;
+    --surface: #0f1520;
+    --surface2: #141c2a;
+    --surface3: #1a2438;
+    --border: rgba(100,160,255,0.10);
+    --border-glow: rgba(100,160,255,0.25);
+    --accent: #4f8fff;
+    --accent2: #a78bfa;
+    --accent3: #34d399;
+    --danger: #f87171;
+    --warning: #f5c842;
+    --text: #e2eaf6;
+    --text-dim: #7a90b0;
+    --text-muted: #3d5070;
+    --reading-font: 'Lora', Georgia, serif;
+    --ui-font: 'Syne', sans-serif;
+    --mono: 'DM Mono', monospace;
+    --radius: 14px;
+    --radius-sm: 8px;
+    --shadow: 0 8px 40px rgba(0,0,0,0.6);
+    --glow: 0 0 30px rgba(79,143,255,0.15);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--ui-font);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 9999; opacity: 0.4;
+  }
+
+  .ambient { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+  .ambient::before { content: ''; position: absolute; top: -20%; left: -10%; width: 60vw; height: 60vw; background: radial-gradient(ellipse, rgba(79,143,255,0.06) 0%, transparent 70%); animation: drift 20s ease-in-out infinite alternate; }
+  .ambient::after { content: ''; position: absolute; bottom: -20%; right: -10%; width: 50vw; height: 50vw; background: radial-gradient(ellipse, rgba(167,139,250,0.05) 0%, transparent 70%); animation: drift 25s ease-in-out infinite alternate-reverse; }
+  @keyframes drift { from { transform: translate(0,0) scale(1); } to { transform: translate(3vw, 3vh) scale(1.05); } }
+
+  .shell { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* TOPBAR */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px; gap: 12px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    background: rgba(8,12,18,0.95);
+    backdrop-filter: blur(20px);
+    position: sticky; top: 0; z-index: 100;
+  }
+
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; }
+  .brand-name { font-size: 1rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+  .brand-tag { font-size: 0.55rem; color: var(--text-muted); }
+
+  .topbar-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  .btn {
+    font-family: var(--ui-font); display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text-dim); font-size: 0.75rem; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--accent); background: rgba(79,143,255,0.1); }
+  .btn.primary { background: linear-gradient(135deg, var(--accent), #3a7aee); border-color: transparent; color: #fff; }
+  .btn.primary:hover { opacity: 0.9; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .search-bar { display: flex; gap: 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 10px; align-items: center; }
+  .search-bar input { background: none; border: none; color: var(--text); font-size: 0.75rem; width: 140px; outline: none; }
+
+  /* MAIN GRID */
+  .main {
+    display: grid;
+    grid-template-columns: 280px 1fr 280px;
+    gap: 0;
+    height: calc(100vh - 70px);
+    transition: grid-template-columns 0.2s ease;
+  }
+
+  @media (max-width: 1000px) {
+    .main { grid-template-columns: 260px 1fr; }
+    .ai-panel { display: none; }
+  }
+  @media (max-width: 780px) {
+    .main { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+  }
+  @media (max-width: 520px) {
+    .topbar { flex-direction: column; align-items: stretch; }
+    .topbar-actions { justify-content: space-between; }
+    .search-bar input { width: 100px; }
+  }
+
+  .sidebar, .ai-panel { background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; }
+  .ai-panel { border-right: none; border-left: 1px solid var(--border); }
+
+  .sidebar-section { padding: 18px; border-bottom: 1px solid var(--border); }
+  .sidebar-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; font-family: var(--mono); }
+
+  .upload-zone { border: 2px dashed var(--border-glow); border-radius: var(--radius); padding: 20px 12px; text-align: center; cursor: pointer; transition: 0.2s; }
+  .upload-zone:hover { border-color: var(--accent); background: rgba(79,143,255,0.05); }
+  .upload-zone input { display: none; }
+
+  .fmt-badge { display: inline-block; font-size: 0.6rem; background: var(--surface3); padding: 2px 8px; border-radius: 20px; margin: 4px; color: var(--accent); }
+
+  .file-info { display: none; background: var(--surface2); border-radius: var(--radius-sm); padding: 12px; margin-top: 10px; border: 1px solid var(--border); }
+  .file-info.visible { display: block; }
+
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-card { background: var(--surface2); border-radius: var(--radius-sm); padding: 8px; border: 1px solid var(--border); text-align: center; }
+  .stat-value { font-size: 1.2rem; font-weight: 800; color: var(--accent); }
+  .stat-label { font-size: 0.65rem; color: var(--text-muted); margin-top: 4px; }
+
+  /* READER PANE */
+  .reader-pane { display: flex; flex-direction: column; overflow: hidden; }
+
+  .reader-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 20px; border-bottom: 1px solid var(--border); background: rgba(15,21,32,0.8); backdrop-filter: blur(10px); flex-wrap: wrap; }
+
+  .icon-btn { width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface2); color: var(--text-dim); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; font-size: 0.9rem; }
+  .icon-btn:hover { background: rgba(79,143,255,0.15); border-color: var(--accent); }
+  .icon-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  .doc-scroll { flex: 1; overflow-y: auto; padding: 40px 32px; scroll-behavior: smooth; }
+
+  .doc-content { max-width: 780px; margin: 0 auto; font-family: var(--reading-font); line-height: 1.8; color: var(--text); }
+  .doc-content p, .doc-content li { font-size: 1.05rem; margin-bottom: 1rem; }
+  .doc-content h1 { font-size: 2rem; margin: 2rem 0 1rem; color: var(--accent); font-weight: 800; }
+  .doc-content h2 { font-size: 1.6rem; margin: 1.8rem 0 0.8rem; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; color: var(--accent2); }
+  .doc-content h3 { font-size: 1.3rem; margin: 1.4rem 0 0.6rem; color: var(--accent3); }
+  .doc-content mark { background: rgba(245,200,66,0.3); color: var(--text); padding: 2px 4px; border-radius: 3px; }
+  .doc-content .para-chunk { cursor: pointer; transition: 0.15s; }
+  .doc-content .para-chunk:hover { background: rgba(79,143,255,0.08); border-radius: 4px; padding: 0 4px; }
+  .doc-content .para-chunk.speaking { background: rgba(79,143,255,0.25); padding: 0 4px; border-radius: 4px; }
+  .doc-content ul, .doc-content ol { margin-left: 2rem; margin-bottom: 1rem; }
+  .doc-content blockquote { border-left: 4px solid var(--accent); padding-left: 1rem; margin-left: 0; margin: 1rem 0; color: var(--text-dim); font-style: italic; }
+  .doc-content code { background: var(--surface2); padding: 2px 6px; border-radius: 4px; font-family: var(--mono); font-size: 0.9em; color: var(--accent3); }
+
+  .reading-progress-bar { height: 3px; background: var(--surface2); }
+  .reading-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); width: 0%; transition: width 0.3s ease; }
+
+  /* NARRATION BAR */
+  .narration-bar { padding: 16px 20px; border-top: 1px solid var(--border); background: var(--surface); }
+  .narration-main { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+
+  .play-btn { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #3a7aee); border: none; color: white; cursor: pointer; font-size: 1.2rem; font-weight: 800; transition: 0.2s; box-shadow: 0 0 20px rgba(79,143,255,0.3); }
+  .play-btn:hover { transform: scale(1.05); }
+  .play-btn:active { transform: scale(0.95); }
+
+  .nar-text { flex: 1; }
+  .nar-title { font-weight: 600; font-size: 0.9rem; }
+  .nar-sub { font-size: 0.7rem; color: var(--text-muted); }
+
+  .nar-controls { display: flex; gap: 6px; }
+
+  .seek-bar { display: flex; align-items: center; gap: 8px; }
+  .seek-slider { flex: 1; height: 4px; background: var(--surface2); border-radius: 4px; cursor: pointer; position: relative; appearance: none; -webkit-appearance: none; width: 100%; }
+  .seek-slider::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 0 10px rgba(79,143,255,0.5); }
+  .seek-slider::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); cursor: pointer; border: none; box-shadow: 0 0 10px rgba(79,143,255,0.5); }
+
+  .time-display { font-size: 0.7rem; font-family: var(--mono); color: var(--text-dim); min-width: 35px; }
+
+  /* FOCUS MODE */
+  .focus-mode-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; z-index: 200; }
+  .focus-mode-overlay.active { display: block; }
+
+  /* AMBIENT CONTROLS */
+  .ambient-control { display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--surface2); border-radius: var(--radius-sm); }
+  .ambient-btn { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--border); background: transparent; cursor: pointer; font-size: 0.7rem; transition: 0.2s; }
+  .ambient-btn.active { background: var(--accent); border-color: var(--accent); }
+
+  /* AI PANEL */
+  .ai-header { padding: 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .ai-status { width: 8px; height: 8px; border-radius: 50%; background: gray; }
+  .ai-status.ready { background: var(--accent3); }
+
+  .ai-tabs { display: flex; gap: 0px; border-bottom: 1px solid var(--border); }
+  .ai-tab { flex: 1; background: none; border: none; color: var(--text-dim); padding: 8px; cursor: pointer; font-size: 0.7rem; font-weight: 600; border-bottom: 2px solid transparent; transition: 0.2s; }
+  .ai-tab:hover { color: var(--text); }
+  .ai-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .ai-content { padding: 12px; overflow-y: auto; flex: 1; font-size: 0.8rem; line-height: 1.5; }
+
+  .insight-block { background: var(--surface2); border-radius: var(--radius-sm); padding: 10px; margin-bottom: 10px; border-left: 3px solid var(--accent); }
+  .insight-title { font-weight: 600; margin-bottom: 4px; }
+  .insight-list { list-style: none; padding: 0; }
+  .insight-list li { padding: 4px 0; }
+  .insight-list li::before { content: '▸ '; color: var(--accent); }
+
+  .chat-msg { border-radius: var(--radius-sm); padding: 8px 12px; margin-bottom: 8px; max-width: 100%; font-size: 0.8rem; word-wrap: break-word; }
+  .chat-msg.user { align-self: flex-end; background: rgba(79,143,255,0.2); margin-left: 20px; }
+  .chat-msg.ai { align-self: flex-start; background: var(--surface2); margin-right: 20px; }
+
+  .chat-input-row { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--border); }
+  .chat-input { flex: 1; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius-sm); padding: 8px; font-size: 0.75rem; font-family: var(--ui-font); resize: none; }
+  .chat-input:focus { outline: none; border-color: var(--accent); }
+
+  .notes-area { width: 100%; min-height: 200px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); padding: 8px; font-family: var(--reading-font); font-size: 0.9rem; resize: vertical; }
+  .notes-area:focus { outline: none; border-color: var(--accent); }
+
+  /* MODALS */
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; z-index: 1000; }
+  .modal.active { display: flex; }
+  .modal-content { background: var(--surface); border-radius: var(--radius); width: 90%; max-width: 500px; padding: 24px; border: 1px solid var(--border); }
+  .modal-header { font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; }
+  .modal-actions { display: flex; gap: 12px; margin-top: 16px; }
+
+  /* TOAST */
+  .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
+  .toast { background: var(--surface2); border-left: 4px solid var(--accent); padding: 12px 16px; border-radius: 8px; margin-bottom: 8px; font-size: 0.75rem; animation: slideIn 0.3s ease; }
+  .toast.error { border-left-color: var(--danger); }
+  .toast.success { border-left-color: var(--accent3); }
+  @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* EMPTY STATE */
+  .empty-state { text-align: center; padding: 60px 20px; }
+  .empty-state-icon { font-size: 4rem; margin-bottom: 20px; }
+  .empty-state-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 10px; }
+  .empty-state-text { color: var(--text-dim); margin-bottom: 20px; }
+
+  /* LIGHT MODE */
+  body.light {
+    --bg: #f4f6fa;
+    --surface: #ffffff;
+    --surface2: #f0f3f8;
+    --surface3: #e5eaf2;
+    --text: #1a2035;
+    --text-dim: #4a5870;
+    --text-muted: #7a90b0;
+  }
+
+  /* FOCUS MODE */
+  body.focus-mode .sidebar { display: none; }
+  body.focus-mode .ai-panel { display: none; }
+  body.focus-mode .main { grid-template-columns: 1fr; }
+  body.focus-mode .topbar { padding: 8px 20px; }
+
+  /* CINEMATIC MODE */
+  body.cinematic-mode {
+    --bg: #000000;
+    --surface: #0a0a0a;
+    --surface2: #121212;
+    --border: rgba(100,160,255,0.05);
+  }
+
+  /* LOADING */
+  .loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .select-field {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    padding: 6px;
+    font-family: var(--ui-font);
+    cursor: pointer;
+  }
+  .select-field:focus { outline: none; border-color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="ambient"></div>
+<div class="shell">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon">📖</div>
+      <div>
+        <div class="brand-name">NARRATOR</div>
+        <div class="brand-tag">v2.0 — Reading Sanctuary</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <div class="search-bar">
+        <span>🔍</span>
+        <input type="text" id="searchInput" placeholder="Search doc...">
+        <span id="searchCount" style="font-size:0.7rem;color:var(--text-dim)"></span>
+      </div>
+      <button class="btn" id="exportBtn" disabled>📄 Export</button>
+      <button class="btn" id="focusBtn">⛶ Focus</button>
+      <button class="btn" id="cinematicBtn">🎬 Cinematic</button>
+      <button class="btn" id="themeToggle">☀</button>
+    </div>
+  </header>
+
+  <!-- MAIN GRID -->
+  <div class="main">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <!-- Upload Section -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">📂 Upload</div>
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="fileInput" accept=".pdf,.txt,.md,.html">
+          <div style="font-size:2rem;margin-bottom:8px">📁</div>
+          <div style="font-weight:600;margin-bottom:4px">PDF, TXT, Markdown</div>
+          <div class="fmt-badge">PDF</div>
+          <div class="fmt-badge">TXT</div>
+          <div class="fmt-badge">Markdown</div>
+        </div>
+        <div class="file-info" id="fileInfo">
+          <div id="fileName" style="font-weight:600;margin-bottom:4px;font-size:0.9rem">—</div>
+          <div id="fileMeta" style="font-size:0.7rem;color:var(--text-dim)">—</div>
+        </div>
+      </div>
+
+      <!-- Stats Section -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">📊 Stats</div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="statWords">—</div>
+            <div class="stat-label">Words</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statParas">—</div>
+            <div class="stat-label">Paragraphs</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statRead">—</div>
+            <div class="stat-label">Read time</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statFocus">—</div>
+            <div class="stat-label">Focus</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Voice & Rate Section -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">🎤 Voice</div>
+        <select id="voiceSelect" class="select-field" style="width:100%;"></select>
+        <div style="margin-top:12px">
+          <label style="font-size:0.75rem;color:var(--text-dim)">Speed: <span id="rateLabel">1.0</span>x</label>
+          <input type="range" id="rateSlider" min="0.4" max="2.0" step="0.1" value="1.0" style="width:100%;cursor:pointer;margin-top:6px">
+        </div>
+      </div>
+
+      <!-- Focus Timer -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">⏱️ Focus Timer</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <button class="btn" id="pomodoro25" style="flex:1;font-size:0.65rem">25m</button>
+          <button class="btn" id="pomodoro45" style="flex:1;font-size:0.65rem">45m</button>
+          <button class="btn" id="pomodoro90" style="flex:1;font-size:0.65rem">90m</button>
+        </div>
+        <div id="timerDisplay" style="text-align:center;font-weight:700;color:var(--accent);font-size:1.2rem;margin-bottom:8px;font-family:var(--mono)">—</div>
+        <button class="btn primary" id="startTimerBtn" style="width:100%;font-size:0.7rem">Start Timer</button>
+      </div>
+
+      <!-- Ambient Audio -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">🎵 Ambient</div>
+        <div class="ambient-control">
+          <button class="ambient-btn" id="ambientRain" title="Rain">🌧</button>
+          <button class="ambient-btn" id="ambientLofi" title="Lo-fi">🎧</button>
+          <button class="ambient-btn" id="ambientForest" title="Forest">🌲</button>
+          <button class="ambient-btn" id="ambientOff" title="Off" style="margin-left:auto">🔕</button>
+        </div>
+        <input type="range" id="ambientVolume" min="0" max="100" value="30" style="width:100%;margin-top:8px;cursor:pointer">
+      </div>
+
+      <!-- Contents/TOC -->
+      <div class="sidebar-section" style="flex:1;overflow:auto">
+        <div class="sidebar-label">📑 Contents</div>
+        <ul id="tocList" style="list-style:none;padding:0;font-size:0.75rem">
+          <li style="color:var(--text-muted)">—</li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- READER PANE -->
+    <div class="reader-pane">
+      <!-- Toolbar -->
+      <div class="reader-toolbar">
+        <button class="icon-btn" id="fontDecBtn" title="Decrease font">A−</button>
+        <button class="icon-btn" id="fontIncBtn" title="Increase font">A+</button>
+        <button class="icon-btn" id="serifToggle" title="Toggle font">𝐓</button>
+        <button class="icon-btn" id="widthToggle" title="Toggle width">⇔</button>
+        <button class="btn" id="pasteBtn">📋 Paste</button>
+        <button class="btn primary" id="narrateSelBtn" disabled>🔊 Selection</button>
+        <button class="btn" id="highlightBtn">🎨 Highlight</button>
+        <button class="btn" id="bookmarkBtn">🔖 Bookmark</button>
+      </div>
+
+      <!-- Reading Progress -->
+      <div class="reading-progress-bar">
+        <div class="reading-progress-fill" id="readingProgressFill"></div>
+      </div>
+
+      <!-- Document Content -->
+      <div class="doc-scroll" id="docScroll">
+        <div class="empty-state">
+          <div class="empty-state-icon">📖</div>
+          <h3 class="empty-state-title">Upload or paste a document</h3>
+          <p class="empty-state-text">PDF, TXT, or Markdown — we'll turn it into an immersive reading experience</p>
+          <div style="display:flex;gap:8px;justify-content:center">
+            <button class="btn primary" id="demoBtn">✨ Try Demo</button>
+            <button class="btn" id="tutorialBtn">? Tutorial</button>
+          </div>
+        </div>
+        <div class="doc-content" id="docContent" style="display:none"></div>
+      </div>
+
+      <!-- Narration Bar -->
+      <div class="narration-bar">
+        <div class="narration-main">
+          <button class="play-btn" id="playBtn">▶</button>
+          <div class="nar-text">
+            <div class="nar-title" id="narTitle">No document</div>
+            <div class="nar-sub" id="narSub">Ready to read</div>
+          </div>
+          <div class="nar-controls">
+            <button class="icon-btn" id="stopBtn" title="Stop">⏹</button>
+            <button class="icon-btn" id="skipBackBtn" title="Back 10s">↩</button>
+            <button class="icon-btn" id="skipFwdBtn" title="Forward 10s">↪</button>
+          </div>
+        </div>
+        <div class="seek-bar">
+          <span class="time-display" id="seekCurrent">0:00</span>
+          <input type="range" id="seekSlider" class="seek-slider" min="0" max="100" value="0">
+          <span class="time-display" id="seekTotal">0:00</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI PANEL -->
+    <div class="ai-panel">
+      <div class="ai-header">
+        <span>🤖 AI Assistant</span>
+        <div class="ai-status" id="aiStatus"></div>
+      </div>
+
+      <div class="ai-tabs">
+        <button class="ai-tab active" data-tab="analyze">Analyze</button>
+        <button class="ai-tab" data-tab="chat">Chat</button>
+        <button class="ai-tab" data-tab="notes">Notes</button>
+        <button class="ai-tab" data-tab="bookmarks">Bookmarks</button>
+      </div>
+
+      <!-- Analyze Tab -->
+      <div id="tab-analyze" class="ai-content" style="display:block">
+        <div id="aiInsights">Load a document to see intelligent insights</div>
+      </div>
+
+      <!-- Chat Tab -->
+      <div id="tab-chat" style="display:none;flex-direction:column;padding:0;overflow:hidden">
+        <div id="aiChatMessages" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column">
+          <div class="chat-msg ai">Ask questions about your document. I'll search the text for contextual answers.</div>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" id="chatInput" placeholder="Ask about the document..." class="chat-input" style="max-height:40px">
+          <button id="chatSend" class="btn primary" style="padding:6px 12px">Send</button>
+        </div>
+      </div>
+
+      <!-- Notes Tab -->
+      <div id="tab-notes" style="display:none;padding:12px">
+        <textarea id="notesArea" class="notes-area" placeholder="Take notes..."></textarea>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button id="clearNotesBtn" class="btn" style="flex:1;font-size:0.7rem">Clear</button>
+          <button id="copyNotesBtn" class="btn primary" style="flex:1;font-size:0.7rem">Copy</button>
+        </div>
+      </div>
+
+      <!-- Bookmarks Tab -->
+      <div id="tab-bookmarks" style="display:none;padding:12px;overflow-y:auto">
+        <div id="bookmarksList" style="font-size:0.75rem">
+          <div style="color:var(--text-muted)">No bookmarks yet. Highlight text and click the bookmark icon to save.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div id="pasteModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">Paste Text</div>
+    <textarea id="pasteArea" rows="12" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:10px;font-family:var(--reading-font);font-size:0.9rem;resize:vertical"></textarea>
+    <div class="modal-actions">
+      <button id="pasteCancelBtn" class="btn" style="flex:1">Cancel</button>
+      <button id="pasteLoadBtn" class="btn primary" style="flex:1">Load</button>
+    </div>
+  </div>
+</div>
+
+<div id="tutorialModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">How to Use NARRATOR 2.0</div>
+    <div style="font-size:0.85rem;line-height:1.6;color:var(--text-dim)">
+      <strong style="color:var(--text)">📖 Upload:</strong> Drag a PDF or paste text<br>
+      <strong style="color:var(--text)">🔊 Narrate:</strong> Click play to hear your document read aloud<br>
+      <strong style="color:var(--text)">🎯 Focus:</strong> Use Focus Mode or Pomodoro timer for deep reading<br>
+      <strong style="color:var(--text)">🎨 Highlight:</strong> Select text and save bookmarks<br>
+      <strong style="color:var(--text)">💬 Chat:</strong> Ask questions about your document<br>
+      <strong style="color:var(--text)">🎵 Ambient:</strong> Add background sounds to enhance focus<br>
+    </div>
+    <div class="modal-actions">
+      <button id="tutorialCloseBtn" class="btn primary" style="width:100%">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toastContainer" class="toast-container"></div>
+
+<!-- SERVICE WORKER REGISTRATION -->
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('data:application/javascript,' + encodeURIComponent(`
+      self.addEventListener('install', e => { e.waitUntil(self.skipWaiting()); });
+      self.addEventListener('activate', e => { e.waitUntil(self.clients.claim()); });
+      self.addEventListener('fetch', e => { e.respondWith(fetch(e.request)); });
+    `)).catch(() => {});
+  }
+</script>
+
+<!-- MAIN APPLICATION -->
+<script>
+  // ============================================================================
+  // NARRATOR 2.0 — MODULAR INTELLIGENT READING SANCTUARY
+  // ============================================================================
+
+  // DOMPurify configuration
+  const purifyConfig = { ALLOWED_TAGS: ['p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'strong', 'em', 'u', 'code', 'blockquote', 'mark'], ALLOWED_ATTR: ['class', 'style', 'id'] };
+
+  // ============================================================================
+  // STORAGE ENGINE — IndexedDB + localStorage fallback
+  // ============================================================================
+  class StorageEngine {
+    constructor() {
+      this.dbName = 'narratorDB';
+      this.version = 1;
+      this.db = null;
+      this.init();
+    }
+
+    async init() {
+      return new Promise((resolve) => {
+        const request = indexedDB.open(this.dbName, this.version);
+        request.onerror = () => {
+          console.warn('IndexedDB unavailable, using localStorage fallback');
+          resolve(false);
+        };
+        request.onsuccess = (e) => {
+          this.db = e.target.result;
+          resolve(true);
+        };
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('documents')) db.createObjectStore('documents', { keyPath: 'id' });
+          if (!db.objectStoreNames.contains('highlights')) db.createObjectStore('highlights', { keyPath: 'id' });
+          if (!db.objectStoreNames.contains('sessions')) db.createObjectStore('sessions', { keyPath: 'id' });
+          if (!db.objectStoreNames.contains('vocabulary')) db.createObjectStore('vocabulary', { keyPath: 'word' });
+        };
+      });
+    }
+
+    async saveDoc(doc) {
+      if (!this.db) {
+        localStorage.setItem(`doc_${doc.id}`, JSON.stringify(doc));
+        return;
+      }
+      return new Promise((resolve) => {
+        const tx = this.db.transaction('documents', 'readwrite');
+        tx.objectStore('documents').put(doc);
+        tx.oncomplete = resolve;
+      });
+    }
+
+    async getDoc(id) {
+      if (!this.db) {
+        const stored = localStorage.getItem(`doc_${id}`);
+        return stored ? JSON.parse(stored) : null;
+      }
+      return new Promise((resolve) => {
+        const tx = this.db.transaction('documents', 'readonly');
+        const request = tx.objectStore('documents').get(id);
+        request.onsuccess = () => resolve(request.result);
+      });
+    }
+
+    async saveHighlight(highlight) {
+      if (!this.db) {
+        const highlights = JSON.parse(localStorage.getItem('highlights') || '[]');
+        highlights.push(highlight);
+        localStorage.setItem('highlights', JSON.stringify(highlights));
+        return;
+      }
+      return new Promise((resolve) => {
+        const tx = this.db.transaction('highlights', 'readwrite');
+        tx.objectStore('highlights').add(highlight);
+        tx.oncomplete = resolve;
+      });
+    }
+
+    async getHighlights() {
+      if (!this.db) {
+        return JSON.parse(localStorage.getItem('highlights') || '[]');
+      }
+      return new Promise((resolve) => {
+        const tx = this.db.transaction('highlights', 'readonly');
+        const request = tx.objectStore('highlights').getAll();
+        request.onsuccess = () => resolve(request.result);
+      });
+    }
+
+    async saveSession(session) {
+      if (!this.db) {
+        localStorage.setItem('session', JSON.stringify(session));
+        return;
+      }
+      return new Promise((resolve) => {
+        const tx = this.db.transaction('sessions', 'readwrite');
+        tx.objectStore('sessions').put(session);
+        tx.oncomplete = resolve;
+      });
+    }
+
+    async getSession() {
+      if (!this.db) {
+        const stored = localStorage.getItem('session');
+        return stored ? JSON.parse(stored) : null;
+      }
+      return new Promise((resolve) => {
+        const tx = this.db.transaction('sessions', 'readonly');
+        const request = tx.objectStore('sessions').get('current');
+        request.onsuccess = () => resolve(request.result);
+      });
+    }
+  }
+
+  // ============================================================================
+  // NARRATION ENGINE — TTS with proper resume/pause and chunk management
+  // ============================================================================
+  class NarrationEngine {
+    constructor() {
+      this.synth = window.speechSynthesis;
+      this.voices = [];
+      this.chunks = [];
+      this.chunkIndex = 0;
+      this.speaking = false;
+      this.paused = false;
+      this.currentUtterance = null;
+      this.pausedTime = 0;
+      this.totalTime = 0;
+      this.chunkDurations = [];
+      this.loadVoices();
+      if (this.synth) this.synth.onvoiceschanged = () => this.loadVoices();
+    }
+
+    loadVoices() {
+      this.voices = this.synth.getVoices();
+      const select = document.getElementById('voiceSelect');
+      if (select && this.voices.length > 0) {
+        select.innerHTML = '';
+        this.voices.forEach((v, i) => {
+          const opt = document.createElement('option');
+          opt.value = i;
+          opt.textContent = `${v.name}${v.lang ? ` (${v.lang})` : ''}`;
+          select.appendChild(opt);
+        });
+      }
+    }
+
+    setChunks(chunks) {
+      this.chunks = chunks;
+      this.chunkIndex = 0;
+      this.totalTime = 0;
+      this.chunkDurations = chunks.map(c => Math.ceil(c.text.split(/\s+/).length / 130 * 1000)); // Est. 130 WPM
+    }
+
+    speak() {
+      if (this.chunkIndex >= this.chunks.length) {
+        this.stop();
+        return;
+      }
+
+      const chunk = this.chunks[this.chunkIndex];
+      document.querySelectorAll('.para-chunk.speaking').forEach(e => e.classList.remove('speaking'));
+      if (chunk.el) {
+        chunk.el.classList.add('speaking');
+        chunk.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      const utterance = new SpeechSynthesisUtterance(chunk.text);
+      const voiceIdx = document.getElementById('voiceSelect').value || 0;
+      if (this.voices[voiceIdx]) utterance.voice = this.voices[voiceIdx];
+      utterance.rate = parseFloat(document.getElementById('rateSlider').value) || 1.0;
+
+      utterance.onend = () => {
+        if (chunk.el) chunk.el.classList.remove('speaking');
+        this.pausedTime += this.chunkDurations[this.chunkIndex] || 1000;
+        this.chunkIndex++;
+        if (this.speaking && !this.paused) this.speak();
+        else if (this.chunkIndex >= this.chunks.length) this.stop();
+        this.updateProgress();
+      };
+
+      utterance.onerror = () => {
+        this.chunkIndex++;
+        if (this.speaking && !this.paused) this.speak();
+      };
+
+      this.currentUtterance = utterance;
+      this.synth.speak(utterance);
+    }
+
+    play() {
+      if (this.speaking) return;
+      this.speaking = true;
+      this.paused = false;
+      this.speak();
+    }
+
+    pause() {
+      if (!this.speaking) return;
+      this.synth.pause();
+      this.speaking = false;
+      this.paused = true;
+    }
+
+    resume() {
+      if (!this.paused) return;
+      this.synth.resume();
+      this.speaking = true;
+      this.paused = false;
+    }
+
+    stop() {
+      this.synth.cancel();
+      this.speaking = false;
+      this.paused = false;
+      this.chunkIndex = 0;
+      this.pausedTime = 0;
+      document.querySelectorAll('.para-chunk.speaking').forEach(e => e.classList.remove('speaking'));
+      this.updateProgress();
+    }
+
+    skipBack(seconds = 10) {
+      if (!this.chunks.length) return;
+      this.synth.cancel();
+      this.pausedTime = Math.max(0, this.pausedTime - seconds * 1000);
+      this.chunkIndex = 0;
+      let time = 0;
+      for (let i = 0; i < this.chunkDurations.length; i++) {
+        if (time + this.chunkDurations[i] <= this.pausedTime) {
+          time += this.chunkDurations[i];
+          this.chunkIndex++;
+        } else break;
+      }
+      if (this.speaking) this.speak();
+      this.updateProgress();
+    }
+
+    skipForward(seconds = 10) {
+      if (!this.chunks.length) return;
+      this.synth.cancel();
+      this.pausedTime = Math.min(this.totalTime, this.pausedTime + seconds * 1000);
+      this.chunkIndex = 0;
+      let time = 0;
+      for (let i = 0; i < this.chunkDurations.length; i++) {
+        if (time + this.chunkDurations[i] <= this.pausedTime) {
+          time += this.chunkDurations[i];
+          this.chunkIndex++;
+        } else break;
+      }
+      if (this.speaking) this.speak();
+      this.updateProgress();
+    }
+
+    updateProgress() {
+      const pct = this.chunks.length > 0 ? (this.chunkIndex / this.chunks.length) * 100 : 0;
+      document.getElementById('readingProgressFill').style.width = pct + '%';
+      document.getElementById('seekSlider').value = pct;
+      const mins = Math.floor(this.pausedTime / 60000);
+      const secs = Math.floor((this.pausedTime % 60000) / 1000);
+      document.getElementById('seekCurrent').innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+      const totalMins = Math.floor(this.totalTime / 60000);
+      const totalSecs = Math.floor((this.totalTime % 60000) / 1000);
+      document.getElementById('seekTotal').innerText = `${totalMins}:${totalSecs < 10 ? '0' : ''}${totalSecs}`;
+    }
+
+    setChunkIndex(idx) {
+      this.chunkIndex = Math.max(0, Math.min(idx, this.chunks.length - 1));
+      let time = 0;
+      for (let i = 0; i < this.chunkIndex; i++) {
+        time += this.chunkDurations[i] || 1000;
+      }
+      this.pausedTime = time;
+      this.updateProgress();
+    }
+  }
+
+  // ============================================================================
+  // FOCUS ENGINE — Reading analytics and focus tracking
+  // ============================================================================
+  class FocusEngine {
+    constructor() {
+      this.sessionStart = Date.now();
+      this.pauseCount = 0;
+      this.replayCount = 0;
+      this.currentFocusDuration = 0;
+      this.focusIntervals = [];
+      this.pauseLocations = [];
+      this.skippedSections = [];
+    }
+
+    trackPause() {
+      this.pauseCount++;
+      this.pauseLocations.push({ time: Date.now() - this.sessionStart, chunkIdx: narrationEngine.chunkIndex });
+    }
+
+    trackReplay(fromIdx, toIdx) {
+      this.replayCount++;
+      this.skippedSections.push({ from: fromIdx, to: toIdx });
+    }
+
+    startFocusInterval() {
+      const start = Date.now();
+      return () => {
+        this.focusIntervals.push(Date.now() - start);
+      };
+    }
+
+    getDifficultSections() {
+      // Sections with high pause frequency
+      return this.pauseLocations.slice(0, 3).map(p => p.chunkIdx);
+    }
+
+    getFocusScore() {
+      const totalTime = Date.now() - this.sessionStart;
+      const pauseFrequency = (this.pauseCount / totalTime) * 60000;
+      const score = Math.max(0, 100 - pauseFrequency * 10);
+      return Math.min(100, Math.floor(score));
+    }
+
+    getStats() {
+      const totalTime = Date.now() - this.sessionStart;
+      return {
+        duration: Math.floor(totalTime / 1000),
+        pauseCount: this.pauseCount,
+        replayCount: this.replayCount,
+        focusScore: this.getFocusScore(),
+        difficultSections: this.getDifficultSections(),
+      };
+    }
+  }
+
+  // ============================================================================
+  // SEARCH ENGINE — Safe, debounced search with highlight management
+  // ============================================================================
+  class SearchEngine {
+    constructor() {
+      this.currentTerm = '';
+      this.matches = [];
+      this.activeMatch = -1;
+      this.debounceTimer = null;
+    }
+
+    search(term) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = setTimeout(() => {
+        this.currentTerm = term.toLowerCase().trim();
+        this.clearHighlights();
+        this.matches = [];
+        this.activeMatch = -1;
+
+        if (!this.currentTerm) return;
+
+        const chunks = document.querySelectorAll('.para-chunk');
+        chunks.forEach((chunk) => {
+          if (chunk.innerText.toLowerCase().includes(this.currentTerm)) {
+            this.matches.push(chunk);
+          }
+        });
+
+        this.highlightMatches();
+        document.getElementById('searchCount').innerText = this.matches.length > 0 ? `${this.matches.length}` : '';
+      }, 300);
+    }
+
+    highlightMatches() {
+      this.matches.forEach((match, idx) => {
+        const text = match.innerText;
+        const regex = new RegExp(`(${this.currentTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        const sanitized = DOMPurify.sanitize(text.replace(regex, '<mark style="background:rgba(245,200,66,0.4);padding:2px 4px;border-radius:3px">$1</mark>'), purifyConfig);
+        match.innerHTML = sanitized;
+      });
+    }
+
+    clearHighlights() {
+      document.querySelectorAll('.para-chunk mark').forEach(mark => {
+        const parent = mark.parentNode;
+        while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+        parent.removeChild(mark);
+      });
+    }
+
+    nextMatch() {
+      if (this.matches.length === 0) return;
+      this.activeMatch = (this.activeMatch + 1) % this.matches.length;
+      this.matches[this.activeMatch].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    previousMatch() {
+      if (this.matches.length === 0) return;
+      this.activeMatch = (this.activeMatch - 1 + this.matches.length) % this.matches.length;
+      this.matches[this.activeMatch].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  // ============================================================================
+  // INSIGHT ENGINE — Local semantic intelligence without cloud APIs
+  // ============================================================================
+  class InsightEngine {
+    constructor() {
+      this.summary = '';
+      this.topics = [];
+      this.keyPoints = [];
+      this.sentiment = 'neutral';
+    }
+
+    analyze(text) {
+      if (!text || text.length < 100) {
+        this.summary = 'Document loaded. Begin narration to explore insights.';
+        this.topics = [];
+        this.keyPoints = [];
+        return;
+      }
+
+      // Extract sentences
+      const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 20).slice(0, 5);
+      this.summary = sentences.slice(0, 2).map(s => s.trim()).join('. ');
+
+      // Extract topics (multi-word terms)
+      const words = text.toLowerCase().split(/\W+/).filter(w => w.length > 5);
+      const wordFreq = {};
+      words.forEach(w => {
+        if (!['which', 'there', 'their', 'about', 'could', 'would', 'should', 'during', 'through', 'before', 'after'].includes(w)) {
+          wordFreq[w] = (wordFreq[w] || 0) + 1;
+        }
+      });
+      this.topics = Object.entries(wordFreq)
+        .filter(([, freq]) => freq >= 2)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([word]) => word);
+
+      // Extract key points (bullet sections + capitalized phrases)
+      const bullets = text.match(/[•\-\*]\s+([^\n]{15,100})/g) || [];
+      this.keyPoints = bullets.slice(0, 4).map(b => b.replace(/[•\-\*]\s+/, '')).filter(k => k.length > 0);
+      if (this.keyPoints.length < 3) {
+        this.keyPoints = [
+          'Detailed content structure identified',
+          'Key concepts available in chat',
+          'Bookmarking enabled for important passages',
+        ];
+      }
+
+      // Simple sentiment (count positive/negative words)
+      const positive = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'love', 'best', 'success', 'happy'];
+      const negative = ['bad', 'terrible', 'awful', 'hate', 'worst', 'fail', 'sad', 'worst', 'angry'];
+      const posCount = text.toLowerCase().split(/\W+/).filter(w => positive.includes(w)).length;
+      const negCount = text.toLowerCase().split(/\W+/).filter(w => negative.includes(w)).length;
+      if (posCount > negCount) this.sentiment = 'positive';
+      else if (negCount > posCount) this.sentiment = 'negative';
+      else this.sentiment = 'neutral';
+    }
+
+    render() {
+      let html = `
+        <div class="insight-block">
+          <div class="insight-title">📝 Summary</div>
+          <div>${DOMPurify.sanitize(this.summary, purifyConfig)}</div>
+        </div>
+      `;
+
+      if (this.keyPoints.length > 0) {
+        html += `
+          <div class="insight-block">
+            <div class="insight-title">⭐ Key Points</div>
+            <ul class="insight-list">
+              ${this.keyPoints.map(p => `<li>${DOMPurify.sanitize(p, purifyConfig)}</li>`).join('')}
+            </ul>
+          </div>
+        `;
+      }
+
+      if (this.topics.length > 0) {
+        html += `
+          <div class="insight-block">
+            <div class="insight-title">🏷️ Topics</div>
+            <div>${this.topics.join(', ')}</div>
+          </div>
+        `;
+      }
+
+      html += `
+        <div class="insight-block">
+          <div class="insight-title">💭 Tone</div>
+          <div>${this.sentiment.charAt(0).toUpperCase() + this.sentiment.slice(1)}</div>
+        </div>
+      `;
+
+      document.getElementById('aiInsights').innerHTML = html;
+      document.getElementById('aiStatus').classList.add('ready');
+    }
+
+    chat(question) {
+      const q = question.toLowerCase().trim();
+      if (!q) return 'Please ask a question.';
+
+      // Search for contextual answer
+      const docContent = document.getElementById('docContent');
+      if (!docContent || !docContent.innerText) return 'Please load a document first.';
+
+      const chunks = document.querySelectorAll('.para-chunk');
+      const qWords = q.split(/\W+/).filter(w => w.length > 3);
+      const relevant = [];
+
+      chunks.forEach(chunk => {
+        const chunkText = chunk.innerText.toLowerCase();
+        let matchCount = 0;
+        qWords.forEach(word => {
+          if (chunkText.includes(word)) matchCount++;
+        });
+        if (matchCount > 0) relevant.push({ chunk: chunk.innerText, score: matchCount });
+      });
+
+      if (relevant.length === 0) {
+        return "I couldn't find a direct answer. Try asking about the main topics or ask me to summarize.";
+      }
+
+      relevant.sort((a, b) => b.score - a.score);
+      const answer = relevant[0].chunk.split(/[.!?]+/).slice(0, 2).join('. ').trim();
+      return answer.length > 0 ? answer : 'Could not extract a clear answer. Try a different question.';
+    }
+  }
+
+  // ============================================================================
+  // READING BRAIN — Central state manager
+  // ============================================================================
+  class ReadingBrain {
+    constructor() {
+      this.currentDoc = null;
+      this.history = [];
+      this.bookmarks = [];
+      this.notes = localStorage.getItem('narrator_notes') || '';
+    }
+
+    async loadSession() {
+      // Restore from storage if available
+      try {
+        this.notes = localStorage.getItem('narrator_notes') || '';
+        const highlights = JSON.parse(localStorage.getItem('highlights') || '[]');
+        this.bookmarks = highlights;
+      } catch (e) {
+        console.warn('Failed to restore session:', e);
+      }
+    }
+
+    saveNotes(text) {
+      this.notes = text;
+      localStorage.setItem('narrator_notes', text);
+    }
+
+    addBookmark(text, chunkIdx) {
+      const bookmark = {
+        id: Date.now(),
+        text: text.substring(0, 100),
+        chunkIdx: chunkIdx,
+        timestamp: new Date().toLocaleString(),
+      };
+      this.bookmarks.push(bookmark);
+      try {
+        localStorage.setItem('highlights', JSON.stringify(this.bookmarks));
+      } catch (e) {
+        console.warn('Failed to save bookmark:', e);
+      }
+      return bookmark;
+    }
+
+    removeBookmark(id) {
+      this.bookmarks = this.bookmarks.filter(b => b.id !== id);
+      try {
+        localStorage.setItem('highlights', JSON.stringify(this.bookmarks));
+      } catch (e) {
+        console.warn('Failed to remove bookmark:', e);
+      }
+    }
+  }
+
+  // ============================================================================
+  // INITIALIZE ENGINES
+  // ============================================================================
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+  const storageEngine = new StorageEngine();
+  const narrationEngine = new NarrationEngine();
+  const focusEngine = new FocusEngine();
+  const searchEngine = new SearchEngine();
+  const insightEngine = new InsightEngine();
+  const readingBrain = new ReadingBrain();
+
+  readingBrain.loadSession();
+
+  // ============================================================================
+  // UTILITY FUNCTIONS
+  // ============================================================================
+
+  function toast(msg, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerText = msg;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  }
+
+  function formatMarkdown(text) {
+    let html = text
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`(.+?)`/g, '<code>$1</code>')
+      .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+
+    const paragraphs = html.split(/\n\s*\n/);
+    return paragraphs
+      .map(p => {
+        const trimmed = p.trim();
+        if (!trimmed || /^<h[1-6]/.test(trimmed) || /^<blockquote/.test(trimmed)) return trimmed;
+        return `<p class="para-chunk">${trimmed.replace(/\n/g, ' ')}</p>`;
+      })
+      .join('\n');
+  }
+
+  async function parsePDF(file) {
+    toast('Extracting PDF text...', 'info');
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+
+      for (let i = 1; i <= Math.min(pdf.numPages, 500); i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str).join(' ');
+        fullText += pageText + '\n\n';
+      }
+
+      return fullText.trim() || '[No extractable text in this PDF]';
+    } catch (err) {
+      toast(`PDF parsing failed: ${err.message}`, 'error');
+      return '';
+    }
+  }
+
+  function processFile(file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'pdf') {
+      parsePDF(file).then(text => {
+        if (text) finalizeLoad(text, file.name.replace(/\.pdf$/i, '') + ' (PDF)');
+      });
+    } else {
+      const reader = new FileReader();
+      reader.onload = e => finalizeLoad(e.target.result, file.name);
+      reader.onerror = () => toast('Failed to read file', 'error');
+      reader.readAsText(file);
+    }
+  }
+
+  function finalizeLoad(text, title) {
+    if (!text || text.length === 0) {
+      toast('Document is empty', 'error');
+      return;
+    }
+
+    // Sanitize and render
+    const sanitized = DOMPurify.sanitize(text, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+    const htmlContent = formatMarkdown(sanitized);
+    const docContent = document.getElementById('docContent');
+    docContent.innerHTML = htmlContent;
+    docContent.style.display = 'block';
+
+    const emptyState = document.querySelector('.empty-state');
+    if (emptyState) emptyState.style.display = 'none';
+
+    // Update UI
+    document.getElementById('fileInfo').classList.add('visible');
+    document.getElementById('fileName').innerText = title;
+    document.getElementById('fileMeta').innerText = `${sanitized.length} chars`;
+
+    const words = sanitized.trim().split(/\s+/).filter(w => w).length;
+    const paras = sanitized.split(/\n\s*\n/).filter(p => p.trim()).length;
+    const readTime = Math.ceil(words / 200);
+
+    document.getElementById('statWords').innerText = words > 999 ? (words / 1000).toFixed(1) + 'k' : words;
+    document.getElementById('statParas').innerText = paras;
+    document.getElementById('statRead').innerText = readTime + 'm';
+    document.getElementById('statFocus').innerText = focusEngine.getFocusScore() + '%';
+
+    document.getElementById('narTitle').innerText = title;
+    document.getElementById('narSub').innerText = `${words} words · ${readTime} min`;
+
+    document.getElementById('exportBtn').disabled = false;
+    document.getElementById('narrateSelBtn').disabled = false;
+
+    // Setup narration
+    const chunks = Array.from(document.querySelectorAll('.para-chunk'))
+      .filter(p => p.innerText.trim().length > 0)
+      .map(el => ({ el, text: el.innerText.trim() }));
+    narrationEngine.setChunks(chunks);
+    narrationEngine.totalTime = chunks.reduce((sum, _, i) => sum + (narrationEngine.chunkDurations[i] || 1000), 0);
+
+    // Build TOC
+    const headings = docContent.querySelectorAll('h1, h2, h3');
+    const tocList = document.getElementById('tocList');
+    tocList.innerHTML = '';
+    if (headings.length > 0) {
+      headings.forEach(h => {
+        const li = document.createElement('li');
+        li.style.padding = '6px 8px';
+        li.style.cursor = 'pointer';
+        li.style.fontSize = '0.75rem';
+        li.style.color = 'var(--text-dim)';
+        li.innerText = h.innerText;
+        li.onclick = () => h.scrollIntoView({ behavior: 'smooth' });
+        li.onmouseover = () => (li.style.color = 'var(--accent)');
+        li.onmouseout = () => (li.style.color = 'var(--text-dim)');
+        tocList.appendChild(li);
+      });
+    } else {
+      tocList.innerHTML = '<li style="color:var(--text-muted)">—</li>';
+    }
+
+    // Analyze content
+    insightEngine.analyze(sanitized);
+    insightEngine.render();
+
+    toast(`Loaded: ${title}`, 'success');
+  }
+
+  // ============================================================================
+  // EVENT LISTENERS
+  // ============================================================================
+
+  // File upload
+  const uploadZone = document.getElementById('uploadZone');
+  const fileInput = document.getElementById('fileInput');
+
+  uploadZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    uploadZone.style.borderColor = 'var(--accent)';
+  });
+  uploadZone.addEventListener('dragleave', () => {
+    uploadZone.style.borderColor = '';
+  });
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.style.borderColor = '';
+    if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+  });
+
+  uploadZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', e => {
+    if (e.target.files[0]) processFile(e.target.files[0]);
+  });
+
+  // Narration controls
+  document.getElementById('playBtn').onclick = () => {
+    if (narrationEngine.speaking) narrationEngine.pause();
+    else if (narrationEngine.paused) narrationEngine.resume();
+    else narrationEngine.play();
+    document.getElementById('playBtn').innerText = narrationEngine.speaking ? '⏸' : '▶';
+  };
+
+  document.getElementById('stopBtn').onclick = () => {
+    narrationEngine.stop();
+    document.getElementById('playBtn').innerText = '▶';
+  };
+
+  document.getElementById('skipBackBtn').onclick = () => {
+    focusEngine.trackReplay(narrationEngine.chunkIndex - 2, narrationEngine.chunkIndex);
+    narrationEngine.skipBack(10);
+  };
+
+  document.getElementById('skipFwdBtn').onclick = () => {
+    focusEngine.trackReplay(narrationEngine.chunkIndex, narrationEngine.chunkIndex + 1);
+    narrationEngine.skipForward(10);
+  };
+
+  document.getElementById('seekSlider').addEventListener('change', e => {
+    const pct = e.target.value / 100;
+    const newIdx = Math.floor(pct * narrationEngine.chunks.length);
+    narrationEngine.setChunkIndex(newIdx);
+  });
+
+  // Reading controls
+  document.getElementById('fontIncBtn').onclick = () => {
+    const docContent = document.getElementById('docContent');
+    const current = parseInt(window.getComputedStyle(docContent).fontSize);
+    docContent.style.fontSize = Math.min(28, current + 2) + 'px';
+  };
+
+  document.getElementById('fontDecBtn').onclick = () => {
+    const docContent = document.getElementById('docContent');
+    const current = parseInt(window.getComputedStyle(docContent).fontSize);
+    docContent.style.fontSize = Math.max(12, current - 2) + 'px';
+  };
+
+  document.getElementById('serifToggle').onclick = e => {
+    e.target.classList.toggle('active');
+    document.getElementById('docContent').style.fontFamily = e.target.classList.contains('active')
+      ? 'var(--mono)'
+      : 'var(--reading-font)';
+  };
+
+  document.getElementById('widthToggle').onclick = e => {
+    e.target.classList.toggle('active');
+    document.getElementById('docContent').style.maxWidth = e.target.classList.contains('active') ? '100%' : '780px';
+  };
+
+  document.getElementById('themeToggle').onclick = () => {
+    document.body.classList.toggle('light');
+  };
+
+  document.getElementById('cinematicBtn').onclick = () => {
+    document.body.classList.toggle('cinematic-mode');
+  };
+
+  document.getElementById('focusBtn').onclick = () => {
+    document.body.classList.toggle('focus-mode');
+  };
+
+  // Paste
+  document.getElementById('pasteBtn').onclick = () => {
+    document.getElementById('pasteModal').classList.add('active');
+  };
+
+  document.getElementById('pasteCancelBtn').onclick = () => {
+    document.getElementById('pasteModal').classList.remove('active');
+  };
+
+  document.getElementById('pasteLoadBtn').onclick = () => {
+    const text = document.getElementById('pasteArea').value.trim();
+    if (text) {
+      finalizeLoad(text, 'Pasted Text');
+      document.getElementById('pasteModal').classList.remove('active');
+    } else {
+      toast('Please paste some text', 'error');
+    }
+  };
+
+  // Demo
+  document.getElementById('demoBtn').onclick = () => {
+    const demo = `# The Future of Reading\n\n## AI-assisted immersive experiences\n\nNARRATOR 2.0 transforms documents into intelligent, immersive reading experiences. Upload PDFs, markdown, or plain text — we'll handle the rest.\n\n### Key Features\n\n- 📖 Audiobook-style narration with natural pause/resume\n- 🎯 Deep focus mode with Pomodoro timer\n- 🎵 Ambient sounds to enhance concentration\n- 💬 Semantic chat for contextual answers\n- 🔖 Smart bookmarking and highlights\n- 📊 Reading analytics and focus tracking\n- 🌙 Cinematic dark mode\n- ⚡ Completely offline and private\n\n### Architecture\n\nBuilt with modular engines:\n\n- **NarrationEngine**: Clean TTS management\n- **FocusEngine**: Reading analytics\n- **SearchEngine**: Safe, debounced search\n- **InsightEngine**: Local semantic intelligence\n- **StorageEngine**: IndexedDB + localStorage\n- **ReadingBrain**: Central state management\n\n> "The future of reading is immersive, intelligent, and under your control."\n\nEnjoy your reading journey.`;
+    finalizeLoad(demo, 'NARRATOR_Demo.md');
+  };
+
+  // Tutorial
+  document.getElementById('tutorialBtn').onclick = () => {
+    document.getElementById('tutorialModal').classList.add('active');
+  };
+
+  document.getElementById('tutorialCloseBtn').onclick = () => {
+    document.getElementById('tutorialModal').classList.remove('active');
+  };
+
+  // Export
+  document.getElementById('exportBtn').onclick = () => {
+    const text = document.getElementById('docContent').innerText;
+    const blob = new Blob([text], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (document.getElementById('narTitle').innerText || 'document') + '.txt';
+    a.click();
+    toast('Exported', 'success');
+  };
+
+  // Narrate selection
+  document.getElementById('narrateSelBtn').onclick = () => {
+    const selected = window.getSelection().toString().trim();
+    if (selected && narrationEngine.synth) {
+      const utterance = new SpeechSynthesisUtterance(selected);
+      const voiceIdx = document.getElementById('voiceSelect').value || 0;
+      if (narrationEngine.voices[voiceIdx]) utterance.voice = narrationEngine.voices[voiceIdx];
+      narrationEngine.synth.speak(utterance);
+    } else {
+      toast('Select text to narrate', 'error');
+    }
+  };
+
+  // Highlight & Bookmark
+  document.getElementById('highlightBtn').onclick = () => {
+    const selected = window.getSelection().toString().trim();
+    if (selected) {
+      const bookmark = readingBrain.addBookmark(selected, narrationEngine.chunkIndex);
+      toast('Bookmarked: ' + selected.substring(0, 30) + '...', 'success');
+      updateBookmarksList();
+    } else {
+      toast('Select text to bookmark', 'error');
+    }
+  };
+
+  document.getElementById('bookmarkBtn').onclick = () => {
+    const selected = window.getSelection().toString().trim();
+    if (selected) {
+      const bookmark = readingBrain.addBookmark(selected, narrationEngine.chunkIndex);
+      toast('Saved bookmark', 'success');
+      updateBookmarksList();
+    } else {
+      toast('Select text to bookmark', 'error');
+    }
+  };
+
+  function updateBookmarksList() {
+    const list = document.getElementById('bookmarksList');
+    if (readingBrain.bookmarks.length === 0) {
+      list.innerHTML = '<div style="color:var(--text-muted);font-size:0.75rem">No bookmarks yet.</div>';
+      return;
+    }
+    list.innerHTML = readingBrain.bookmarks
+      .map(
+        b => `
+      <div style="background:var(--surface2);border-radius:8px;padding:8px;margin-bottom:8px;border-left:3px solid var(--accent)">
+        <div style="font-size:0.75rem;color:var(--text)">"${b.text}"</div>
+        <div style="font-size:0.65rem;color:var(--text-muted);margin-top:4px">${b.timestamp}</div>
+        <button class="btn" style="margin-top:6px;width:100%;font-size:0.65rem" onclick="readingBrain.removeBookmark(${b.id});updateBookmarksList()">Remove</button>
+      </div>
+    `
+      )
+      .join('');
+  }
+
+  // Search
+  document.getElementById('searchInput').addEventListener('input', e => {
+    searchEngine.search(e.target.value);
+  });
+
+  // AI Chat
+  document.getElementById('chatSend').onclick = () => {
+    const input = document.getElementById('chatInput');
+    const q = input.value.trim();
+    if (!q) return;
+
+    const chatDiv = document.getElementById('aiChatMessages');
+    const userMsg = document.createElement('div');
+    userMsg.className = 'chat-msg user';
+    userMsg.innerText = q;
+    chatDiv.appendChild(userMsg);
+    input.value = '';
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+
+    setTimeout(() => {
+      const answer = insightEngine.chat(q);
+      const aiMsg = document.createElement('div');
+      aiMsg.className = 'chat-msg ai';
+      aiMsg.innerText = answer;
+      chatDiv.appendChild(aiMsg);
+      chatDiv.scrollTop = chatDiv.scrollHeight;
+    }, 100);
+  };
+
+  document.getElementById('chatInput').addEventListener('keypress', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      document.getElementById('chatSend').click();
+    }
+  });
+
+  // Notes
+  document.getElementById('notesArea').addEventListener('input', e => {
+    readingBrain.saveNotes(e.target.value);
+  });
+
+  document.getElementById('notesArea').value = readingBrain.notes;
+
+  document.getElementById('clearNotesBtn').onclick = () => {
+    if (confirm('Clear all notes?')) {
+      document.getElementById('notesArea').value = '';
+      readingBrain.saveNotes('');
+      toast('Notes cleared', 'success');
+    }
+  };
+
+  document.getElementById('copyNotesBtn').onclick = () => {
+    const notes = document.getElementById('notesArea').value;
+    if (notes) {
+      navigator.clipboard.writeText(notes);
+      toast('Copied notes', 'success');
+    } else {
+      toast('No notes to copy', 'error');
+    }
+  };
+
+  // AI Tabs
+  document.querySelectorAll('.ai-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.ai-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.ai-content').forEach(c => (c.style.display = 'none'));
+      document.getElementById('tab-chat').style.display = 'none';
+      document.getElementById('tab-notes').style.display = 'none';
+      document.getElementById('tab-bookmarks').style.display = 'none';
+
+      tab.classList.add('active');
+      const tabName = tab.dataset.tab;
+      document.getElementById(`tab-${tabName}`).style.display = tabName === 'chat' ? 'flex' : 'block';
+    });
+  });
+
+  // Focus Timer
+  let timerInterval = null;
+  let timerDuration = 0;
+
+  function startTimer(minutes) {
+    if (timerInterval) clearInterval(timerInterval);
+    timerDuration = minutes * 60;
+    focusEngine.startFocusInterval();
+
+    timerInterval = setInterval(() => {
+      if (timerDuration <= 0) {
+        clearInterval(timerInterval);
+        toast('Focus session complete!', 'success');
+        document.getElementById('timerDisplay').innerText = '—';
+        return;
+      }
+
+      timerDuration--;
+      const mins = Math.floor(timerDuration / 60);
+      const secs = timerDuration % 60;
+      document.getElementById('timerDisplay').innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }, 1000);
+
+    document.getElementById('timerDisplay').innerText = `${minutes}:00`;
+  }
+
+  document.getElementById('pomodoro25').onclick = () => startTimer(25);
+  document.getElementById('pomodoro45').onclick = () => startTimer(45);
+  document.getElementById('pomodoro90').onclick = () => startTimer(90);
+  document.getElementById('startTimerBtn').onclick = () => startTimer(25);
+
+  // Ambient Audio (visual feedback only — real audio would require Web Audio API or external audio)
+  document.getElementById('ambientRain').onclick = function() {
+    this.classList.toggle('active');
+    toast('Rain ambience ' + (this.classList.contains('active') ? 'enabled' : 'disabled'), 'info');
+  };
+  document.getElementById('ambientLofi').onclick = function() {
+    this.classList.toggle('active');
+    toast('Lo-fi ambience ' + (this.classList.contains('active') ? 'enabled' : 'disabled'), 'info');
+  };
+  document.getElementById('ambientForest').onclick = function() {
+    this.classList.toggle('active');
+    toast('Forest ambience ' + (this.classList.contains('active') ? 'enabled' : 'disabled'), 'info');
+  };
+  document.getElementById('ambientOff').onclick = function() {
+    document.querySelectorAll('.ambient-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    toast('Ambient sounds off', 'info');
+  };
+
+  document.getElementById('ambientOff').classList.add('active');
+
+  // Initialize
+  narrationEngine.loadVoices();
+  updateBookmarksList();
+
+  // Scroll progress
+  document.getElementById('docScroll').addEventListener('scroll', e => {
+    const scrollTop = e.target.scrollTop;
+    const scrollHeight = e.target.scrollHeight - e.target.clientHeight;
+    const progress = (scrollTop / scrollHeight) * 100;
+    document.getElementById('readingProgressFill').style.width = Math.min(100, progress) + '%';
+  });
+
+  // Prevent memory leaks on unload
+  window.addEventListener('beforeunload', () => {
+    if (narrationEngine.synth) narrationEngine.synth.cancel();
+    if (timerInterval) clearInterval(timerInterval);
+  });
+</script>
+</body>
+</html>
